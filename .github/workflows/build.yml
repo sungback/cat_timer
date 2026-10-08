@@ -1,0 +1,32 @@
+name: build
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - run: npm ci
+      - run: npx electron-builder --mac dir --publish never
+      # 서명 없이 빌드하면 번들 서명이 깨지므로 ad-hoc 서명 후 압축
+      - run: |
+          codesign --force --deep -s - dist/mac-arm64/CatTimer.app
+          ditto -c -k --keepParent dist/mac-arm64/CatTimer.app CatTimer-mac-arm64.zip
+      - uses: actions/upload-artifact@v4
+        with: { name: CatTimer-mac-arm64, path: CatTimer-mac-arm64.zip }
+
+  win:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - run: npm ci
+      - run: npx electron-builder --win portable --publish never
+      - uses: actions/upload-artifact@v4
+        with: { name: CatTimer-win, path: dist/*.exe }

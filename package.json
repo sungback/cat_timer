@@ -1,0 +1,37 @@
+{
+  "name": "cattimer",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:mac": "electron-builder --mac dir"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.15.3"
+  },
+  "allowScripts": {
+    "electron@38.8.6": true
+  },
+  "build": {
+    "appId": "local.cattimer",
+    "productName": "CatTimer",
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html"
+    ],
+    "extraResources": [
+      {
+        "from": "photos",
+        "to": "photos"
+      }
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "mac": {
+      "identity": null
+    }
+  }
+}

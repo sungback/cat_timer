@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CatTimer</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-family: system-ui, sans-serif; color: #fff; }
+  #photo { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  #strips { position: fixed; left: 3.75%; bottom: 0; width: 92.5%; height: 22%; display: flex; }
+  .strip { flex: 1; background: #3e393d; border-right: 1px solid #0006; display: flex; align-items: center; justify-content: center;
+           font-size: min(3.2vw, 5vh); font-weight: 700; }
+  #time { position: fixed; top: 2vh; right: 2vw; font-size: 6vw; font-weight: 700;
+          text-shadow: 0 0 .15em #000, 0 0 .4em #000; pointer-events: none; }
+  #ui { position: fixed; left: 0; right: 0; top: 0; padding: 12px; display: flex; flex-wrap: wrap; gap: 6px;
+        justify-content: center; background: #000a; transition: opacity .3s; }
+  #ui.hide { opacity: 0; pointer-events: none; }
+  button, input { font: inherit; padding: 6px 10px; border-radius: 6px; border: 0; }
+  button.on { background: #f4b183; }
+  input[type=number] { width: 4.5em; }
+  body.done { animation: flash .5s 6; }
+  @keyframes flash { 50% { background: #fff; } }
+</style>
+<img id="photo" alt="">
+<div id="strips"></div>
+<div id="time"></div>
+<div id="ui"></div>
+<script>
+// 실행: `npm start` (Electron). 사진 폴더: ./photos/ (preload.js가 읽음). 브라우저에서는 `python3 -m http.server`도 가능.
+const $ = id => document.getElementById(id);
+const IMG = /\.(jpe?g|png|gif|webp)$/i;
+const MIN = 60000;
+let mins = +localStorage.mins || 15;
+let base = 0, startedAt = null, done = false;
+let photos = [], pi = 0;
+
+const elapsed = () => base + (startedAt ? Date.now() - startedAt : 0);
+
+function buildStrips() {
+  $('strips').replaceChildren(...Array.from({ length: mins }, (_, i) => Object.assign(document.createElement('div'), { className: 'strip', textContent: i + 1 })));
+}
+
+function setMins(m) {
+  mins = Math.max(1, Math.min(180, Math.round(m) || 1));
+  localStorage.mins = mins;
+  reset(); buildStrips(); buildUI();
+}
+
+function reset() { base = 0; startedAt = null; done = false; document.body.classList.remove('done'); wake(false); }
+
+function toggle() {
+  if (done) reset();
+  if (startedAt) { base = elapsed(); startedAt = null; wake(false); }
+  else { startedAt = Date.now(); wake(true); $('ui').classList.add('hide'); }
+}
+
+function beep() {
+  const a = new AudioContext();
+  for (let i = 0; i < 6; i++) {
+    const o = a.createOscillator(); o.connect(a.destination); o.frequency.value = 880;
+    o.start(a.currentTime + i * .5); o.stop(a.currentTime + i * .5 + .25);
+  }
+}
+
+let lock;
+async function wake(on) {
+  try { if (on) lock = await navigator.wakeLock.request('screen'); else { await lock?.release(); lock = null; } } catch {}
+}
+
+function tick() {
+  const e = Math.min(elapsed(), mins * MIN);
+  [...$('strips').children].forEach((s, i) => {
+    const p = Math.min(1, Math.max(0, (e - i * MIN) / MIN));
+    s.style.clipPath = `inset(0 0 0 ${p * 100}%)`; // 왼쪽부터 지워짐 (wipe)
+  });
+  const left = Math.ceil((mins * MIN - e) / 1000);
+  $('time').textContent = String(Math.floor(left / 60)).padStart(2, '0') + ':' + String(left % 60).padStart(2, '0');
+  if (!done && e >= mins * MIN) { done = true; startedAt = null; base = mins * MIN; document.body.classList.add('done'); beep(); wake(false); $('ui').classList.remove('hide'); }
+  requestAnimationFrame(tick);
+}
+
+function showPhoto(d = 0) {
+  if (photos.length) { pi = (pi + d + photos.length) % photos.length; $('photo').src = photos[pi]; if ($('sel')) $('sel').value = pi; }
+}
+
+function setPhotos(list, randomStart = true) {
+  photos = list; pi = randomStart ? Math.floor(Math.random() * list.length) : 0; showPhoto(); buildUI();
+}
+
+async function loadDefault() {
+  if (window.photoList?.length) return setPhotos(photoList); // Electron
+  try {
+    const html = await (await fetch('photos/')).text();
+    const files = [...html.matchAll(/href="([^"]+)"/g)].map(m => m[1]).filter(f => IMG.test(f));
+    if (files.length) setPhotos(files.map(f => 'photos/' + decodeURIComponent(f).split('/').pop()));
+  } catch {}
+}
+
+function buildUI() {
+  const ui = $('ui');
+  ui.replaceChildren();
+  const add = (t, f, on) => { const b = Object.assign(document.createElement('button'), { textContent: t, onclick: f }); if (on) b.className = 'on'; ui.append(b); };
+  for (let m = 1; m <= 15; m++) add(m + '분', () => setMins(m), m === mins);
+  const n = Object.assign(document.createElement('input'), { type: 'number', min: 1, max: 180, placeholder: '분', onchange: () => setMins(+n.value) });
+  ui.append(n);
+  add('시작/정지 (Space)', toggle);
+  add('리셋 (R)', () => { reset(); });
+  const sel = Object.assign(document.createElement('select'), { id: 'sel', onchange: () => { pi = +sel.value; showPhoto(); } });
+  photos.forEach((p, i) => sel.add(new Option(decodeURIComponent(p.split('/').pop()), i)));
+  sel.value = pi; ui.append(sel);
+  add('전체화면 (F)', fs);
+}
+
+const fs = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.code === 'Space') { e.preventDefault(); toggle(); }
+  else if (e.key === 'r') reset();
+  else if (e.key === 'f') fs();
+  else if (e.key === 'ArrowRight') showPhoto(1);
+  else if (e.key === 'ArrowLeft') showPhoto(-1);
+});
+// 마우스를 움직이면 컨트롤 표시, 실행 중 3초 후 숨김
+let hideT;
+addEventListener('mousemove', () => {
+  $('ui').classList.remove('hide'); clearTimeout(hideT);
+  if (startedAt) hideT = setTimeout(() => $('ui').classList.add('hide'), 3000);
+});
+
+buildStrips(); buildUI(); loadDefault(); tick();
+</script>
