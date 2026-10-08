@@ -37,3 +37,7 @@
 ## 나중에 (YAGNI, 필요할 때만)
 - 다중 모니터에서 특정 모니터 지정 전체화면 (Window Management API)
 - 설정 파일/테마, 소리 파일 교체
+
+## 저작권 정리
+- [x] photos/를 Wikimedia Commons CC0 사진 10장(free01~10)으로 교체, 출처는 photos/CREDITS.md
+- [ ] GitHub 옛 커밋 기록에서 cat*.jpg 제거 (히스토리 합치기 + force push)
