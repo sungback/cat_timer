@@ -49,8 +49,8 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
-        with: { merge-multiple: true, path: out }
+      # 순서 주의: checkout은 기본 git clean -ffdx로 untracked인 out/을 지우므로
+      # 반드시 아티팩트 다운로드보다 먼저 실행해야 한다.
       - uses: actions/checkout@v4
       # package.json 버전과 태그가 다르면 업데이터가 꼬이므로 실패
       - run: |
@@ -58,6 +58,8 @@ jobs:
           TAG="${GITHUB_REF_NAME#v}"
           echo "package.json=$VER tag=$TAG"
           test "$VER" = "$TAG"
-      - run: gh release create "$GITHUB_REF_NAME" out/* --repo "$GITHUB_REPOSITORY" --generate-notes
+      - uses: actions/download-artifact@v4
+        with: { merge-multiple: true, path: out }
+      - run: ls -la out && gh release create "$GITHUB_REF_NAME" out/* --repo "$GITHUB_REPOSITORY" --generate-notes
         env:
           GH_TOKEN: ${{ github.token }}
