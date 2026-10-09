@@ -9,19 +9,19 @@
   #strips { position: fixed; left: 3.75%; bottom: 0; width: 92.5%; height: 22%; display: flex; }
   .strip { flex: 1; background: #3e393d; border-right: 1px solid #0006; display: flex; align-items: center; justify-content: center;
            font-size: min(3.2vw, 5vh); font-weight: 700; }
-  #time { position: fixed; top: 2vh; right: 2vw; font-size: 6vw; font-weight: 700;
+  #time { position: fixed; right: 2vw; bottom: calc(22% + 1vh); font-size: 5vw; font-weight: 700;
           text-shadow: 0 0 .15em #000, 0 0 .4em #000; pointer-events: none; }
-  #ui { position: fixed; left: 0; right: 0; top: 0; padding: 12px; display: flex; flex-wrap: wrap; gap: 6px;
-        justify-content: center; background: #000a; transition: opacity .3s; }
+  #ui { position: fixed; left: 0; right: 0; top: 0; padding: 8px; display: flex; flex-wrap: wrap; gap: 4px;
+        justify-content: center; background: #000a; transition: opacity .3s; font-size: 13px; }
   #ui.hide { opacity: 0; pointer-events: none; }
-  #update { position: fixed; left: 50%; transform: translateX(-50%); bottom: 12px; z-index: 10;
+  #update { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(22% + 12px); z-index: 10;
     display: none; align-items: center; gap: 8px; background: #111d; color: #fff;
     padding: 8px 12px; border-radius: 10px; font-size: 14px; }
   #update.show { display: flex; }
   #update button { padding: 4px 10px; }
-  button, input { font: inherit; padding: 6px 10px; border-radius: 6px; border: 0; }
+  button, input { font: inherit; padding: 4px 8px; border-radius: 6px; border: 0; }
   button.on { background: #f4b183; }
-  input[type=number] { width: 4.5em; }
+  input[type=number] { width: 3.5em; }
   body.done { animation: flash .5s 6; }
   @keyframes flash { 50% { background: #fff; } }
 </style>
