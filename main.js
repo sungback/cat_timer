@@ -139,6 +139,7 @@ function restartToApply() {
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280, height: 720, backgroundColor: '#000',
+    title: 'CatTimer v' + app.getVersion(),
     webPreferences: { preload: __dirname + '/preload.js', sandbox: false }, // preload에서 fs 사용
   });
   mainWindow.setMenuBarVisibility(false);
