@@ -34,6 +34,15 @@
 
 - [ ] E. 실제 창으로 눈으로 확인 (칸 wipe, 전체화면, 알림음, 2번째 모니터)
 
+## 자동 업데이트 (KFF/MyCap 방식: 무서명 인앱 교체)
+- [x] U1. 에셋 규격 고정: `CatTimer-macOS.zip`(+`.sha256`, 안에 `CatTimer.app` 1개), `CatTimer-Windows-Portable.exe`(+`.sha256`). 태그 URL(`releases/download/{tag}/{asset}`)로 조회
+- [x] U2. `updater.js`: `releases/latest` 확인만 (다운로드·설치 안 함), `v` 제거 semver 비교, 7일 간격+수동 확인, 실패는 조용히 스킵
+- [x] U3. `selfupdate.js`: 종료 후 교체용 도우미 생성 — mac은 `ditto -x -k` 해제→`.bak` 회전→`mv` 스왑→`xattr -dr quarantine`→`open`, 실패시 원복. Win portable는 단일 exe 스왑 배치
+- [x] U4. `main.js` 배선: 시작 5초 후 백그라운드 확인 + `update:*` IPC (`check/startDownload/restart/openDownloadPage`), `app.isPackaged` 아닐 땐 스킵
+- [x] U5. `preload.js + index.html`: `#ui` 하단 배너 (새 버전/진행률/재시작 적용/건너뛰기), `localStorage.skippedVersion` 저장
+- [x] U6. `build.yml`: stable 이름으로 rename + `shasum -a 256` 생성, Release에 동봉, `package.json` 버전≠태그면 실패
+- [ ] U7. 테스트: `v1.0.0` 설치→`v1.0.1-test` 발행→배너→다운로드→재시작 확인, 권한없음/오프라인은 원복·조용히 스킵 확인
+
 ## 나중에 (YAGNI, 필요할 때만)
 - 다중 모니터에서 특정 모니터 지정 전체화면 (Window Management API)
 - 설정 파일/테마, 소리 파일 교체

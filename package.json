@@ -1,10 +1,11 @@
 {
   "name": "cattimer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build:mac": "electron-builder --mac dir"
+    "build:mac": "electron-builder --mac dir",
+    "build:win": "electron-builder --win portable"
   },
   "devDependencies": {
     "electron": "^38.0.0",
@@ -19,6 +20,8 @@
     "files": [
       "main.js",
       "preload.js",
+      "updater.js",
+      "selfupdate.js",
       "index.html"
     ],
     "extraResources": [
@@ -32,6 +35,12 @@
     },
     "mac": {
       "identity": null
+    },
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "artifactName": "${productName}-Windows-Portable-${version}.exe"
     }
   }
 }

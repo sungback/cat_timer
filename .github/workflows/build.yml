@@ -14,12 +14,15 @@ jobs:
         with: { node-version: 24 }
       - run: npm ci
       - run: npx electron-builder --mac dir --publish never
+      # KFF 방식: 파일명은 버전 없이 고정, 태그가 버전을 구분한다.
       # 서명 없이 빌드하면 번들 서명이 깨지므로 ad-hoc 서명 후 압축
       - run: |
           codesign --force --deep -s - dist/mac-arm64/CatTimer.app
-          ditto -c -k --keepParent dist/mac-arm64/CatTimer.app CatTimer-mac-arm64.zip
+          ditto -c -k --keepParent dist/mac-arm64/CatTimer.app CatTimer-macOS.zip
+          shasum -a 256 CatTimer-macOS.zip | awk '{print $1}' > CatTimer-macOS.zip.sha256
+          cat CatTimer-macOS.zip.sha256
       - uses: actions/upload-artifact@v4
-        with: { name: CatTimer-mac-arm64, path: CatTimer-mac-arm64.zip }
+        with: { name: CatTimer-mac, path: CatTimer-macOS.zip* }
 
   win:
     runs-on: windows-latest
@@ -29,8 +32,15 @@ jobs:
         with: { node-version: 24 }
       - run: npm ci
       - run: npx electron-builder --win portable --publish never
+      # updater가 찾는 고정 이름으로 변경 + sha256 동봉 (공백 제거)
+      - run: |
+          $exe = Get-ChildItem dist/*.exe | Select-Object -First 1
+          Copy-Item $exe.FullName CatTimer-Windows-Portable.exe
+          (Get-FileHash CatTimer-Windows-Portable.exe -Algorithm SHA256).Hash.ToLower() | Out-File -NoNewline CatTimer-Windows-Portable.exe.sha256
+          Get-Content CatTimer-Windows-Portable.exe.sha256
+        shell: pwsh
       - uses: actions/upload-artifact@v4
-        with: { name: CatTimer-win, path: dist/*.exe }
+        with: { name: CatTimer-win, path: CatTimer-Windows-Portable.exe* }
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -41,6 +51,13 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with: { merge-multiple: true, path: out }
+      - uses: actions/checkout@v4
+      # package.json 버전과 태그가 다르면 업데이터가 꼬이므로 실패
+      - run: |
+          VER=$(node -p "require('./package.json').version")
+          TAG="${GITHUB_REF_NAME#v}"
+          echo "package.json=$VER tag=$TAG"
+          test "$VER" = "$TAG"
       - run: gh release create "$GITHUB_REF_NAME" out/* --repo "$GITHUB_REPOSITORY" --generate-notes
         env:
           GH_TOKEN: ${{ github.token }}

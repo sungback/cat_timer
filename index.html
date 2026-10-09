@@ -14,6 +14,11 @@
   #ui { position: fixed; left: 0; right: 0; top: 0; padding: 12px; display: flex; flex-wrap: wrap; gap: 6px;
         justify-content: center; background: #000a; transition: opacity .3s; }
   #ui.hide { opacity: 0; pointer-events: none; }
+  #update { position: fixed; left: 50%; transform: translateX(-50%); bottom: 12px; z-index: 10;
+    display: none; align-items: center; gap: 8px; background: #111d; color: #fff;
+    padding: 8px 12px; border-radius: 10px; font-size: 14px; }
+  #update.show { display: flex; }
+  #update button { padding: 4px 10px; }
   button, input { font: inherit; padding: 6px 10px; border-radius: 6px; border: 0; }
   button.on { background: #f4b183; }
   input[type=number] { width: 4.5em; }
@@ -24,6 +29,7 @@
 <div id="strips"></div>
 <div id="time"></div>
 <div id="ui"></div>
+<div id="update"><span id="update-msg"></span><button id="update-go"></button><button id="update-skip" style="display:none">건너뛰기</button></div>
 <script>
 // 실행: `npm start` (Electron). 사진 폴더: ./photos/ (preload.js가 읽음). 브라우저에서는 `python3 -m http.server`도 가능.
 const $ = id => document.getElementById(id);
@@ -104,6 +110,7 @@ function buildUI() {
   ui.append(n);
   add('시작/정지 (Space)', toggle);
   add('리셋 (R)', () => { reset(); });
+  if (window.updateAPI) add('업데이트 확인', () => window.updateAPI.check(true));
   const sel = Object.assign(document.createElement('select'), { id: 'sel', onchange: () => { pi = +sel.value; showPhoto(); } });
   photos.forEach((p, i) => sel.add(new Option(decodeURIComponent(p.split('/').pop()), i)));
   sel.value = pi; ui.append(sel);
@@ -126,6 +133,39 @@ addEventListener('mousemove', () => {
   $('ui').classList.remove('hide'); clearTimeout(hideT);
   if (startedAt) hideT = setTimeout(() => $('ui').classList.add('hide'), 3000);
 });
+
+// --- 자동 업데이트 배너 (KFF 방식: 확인→승인→다운로드→재시작 적용) ---
+(function setupUpdaterUI() {
+  if (!window.updateAPI) return; // 브라우저 모드에서는 숨김
+  const bar = $('update'), msg = $('update-msg'), go = $('update-go'), skip = $('update-skip');
+  const skipped = () => localStorage.skippedVersion || '';
+  let state = 'idle', ver = '';
+  const show = (m, g, showSkip) => { msg.textContent = m; go.textContent = g; go.style.display = g ? '' : 'none'; skip.style.display = showSkip ? '' : 'none'; bar.classList.add('show'); };
+  const hide = () => bar.classList.remove('show');
+  go.onclick = async () => {
+    try {
+      if (state === 'available') { show(`v${ver} 다운로드 중… 0%`, ''); await window.updateAPI.startDownload(); }
+      else if (state === 'downloaded') await window.updateAPI.restart();
+      else if (state === 'error') await window.updateAPI.openDownloadPage();
+      else await window.updateAPI.check(true);
+    } catch (e) { /* main에서 상태로 알려줌 */ }
+  };
+  skip.onclick = () => { if (ver) localStorage.skippedVersion = ver; hide(); };
+  window.updateAPI.onStatus((s) => {
+    state = s.state; ver = s.version || ver;
+    if (s.state === 'available') {
+      if (ver && ver === skipped()) return; // 건너뛴 버전은 묻지 않음
+      show(`새 버전 v${s.version} 있음`, '업데이트', true);
+    } else if (s.state === 'downloading') show(`v${ver} 다운로드 중… ${s.percent ?? 0}%`, '');
+    else if (s.state === 'downloaded') show(`v${ver} 준비됨. 재시작하면 적용됩니다`, '재시작하여 적용');
+    else if (s.state === 'error') {
+      if (s.message === 'NO_WRITE') show('Applications 쓰기 권한이 없어 자동 적용 불가', '릴리즈 페이지 열기');
+      else if (s.message) show('업데이트 중 문제 발생. 수동 다운로드를 이용해 주세요', '릴리즈 페이지 열기');
+      else hide();
+    }
+    else hide(); // idle / checking / up-to-date
+  });
+})();
 
 buildStrips(); buildUI(); loadDefault(); tick();
 </script>
